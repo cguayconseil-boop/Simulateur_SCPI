@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulateur SCPI — Patrimoine & Revenus</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F9F8F6;
+  --surface: #FFFFFF;
+  --surface2: #F1EEE9;
+  --border: #E5E1DA;
+  --border2: #D1CDC5;
+  --text: #1A1714;
+  --muted: #6B6560;
+  --hint: #A09A94;
+  --blue: #185FA5;
+  --green: #3B6D11;
+  --amber: #EF9F27;
+  --pink: #D4537E;
+  --radius-lg: 18px;
+  --radius: 12px;
+  --shadow: 0 4px 20px rgba(26,23,20,0.05);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--bg); color: var(--text);
+  font-size: 15px; line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── HEADER ── */
+header {
+  background: var(--text); color: #fff;
+  padding: 2.5rem 2rem 0;
+  text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+}
+header h1 { font-family: 'DM Serif Display', serif; font-size: 2.4rem; font-weight: 400; letter-spacing: -0.02em; }
+header .header-sub { font-size: 14px; color: rgba(255,255,255,0.55); font-weight: 300; }
+.header-footer {
+  width: 100%; margin-top: 1.5rem;
+  border-top: 1px solid rgba(255,255,255,0.08);
+  padding: 0.75rem 2rem;
+  display: flex; justify-content: center;
+}
+.copyright { font-size: 11px; color: rgba(255,255,255,0.35); letter-spacing: 0.04em; }
+.copyright strong { color: rgba(255,255,255,0.6); font-weight: 600; }
+
+.page { max-width: 1200px; margin: 0 auto; padding: 2.5rem 1.5rem; }
+.panel {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 1.75rem;
+  margin-bottom: 2rem; box-shadow: var(--shadow);
+}
+.section-label {
+  font-size: 11px; font-weight: 700; color: var(--hint);
+  text-transform: uppercase; letter-spacing: 0.12em;
+  margin-bottom: 1.5rem; display: block;
+}
+
+/* ── CONTROLS (UI Optimisée) ── */
+.controls-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 2rem;
+  align-items: start;
+}
+@media (max-width: 950px) { .controls-grid { grid-template-columns: 1fr 1fr; gap: 1.5rem; } }
+@media (max-width: 550px)  { .controls-grid { grid-template-columns: 1fr; } }
+
+.ctrl-block { display: flex; flex-direction: column; gap: 14px; }
+.ctrl-header { 
+  display: flex; 
+  justify-content: space-between; 
+  align-items: baseline; 
+  gap: 8px;
+  min-height: 44px; 
+}
+.ctrl-name {
+  font-size: 11px; font-weight: 700; color: var(--text);
+  text-transform: uppercase; letter-spacing: 0.04em;
+  line-height: 1.4; flex: 1;
+}
+.ctrl-badge { 
+  font-family: 'DM Serif Display', serif; 
+  font-size: 1.3rem; color: var(--blue); line-height: 1;
+  white-space: nowrap; position: relative; top: 2px;
+}
+.ctrl-block.kpi-linked .ctrl-badge { color: var(--pink); }
+.ctrl-block.rate-ctrl  .ctrl-badge { color: var(--green); }
+.ctrl-sub { 
+  font-size: 11px; color: var(--hint); line-height: 1.4;
+  min-height: 32px; display: flex; flex-direction: column; justify-content: flex-start;
+}
+
+input[type=range] {
+  width: 100%; height: 6px;
+  background: var(--surface2); border-radius: 6px;
+  appearance: none; outline: none; cursor: pointer;
+}
+input[type=range]::-webkit-slider-thumb {
+  appearance: none; width: 22px; height: 22px; border-radius: 50%;
+  background: var(--text); border: 4px solid #fff;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  cursor: pointer; transition: all .2s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.1); }
+.ctrl-block.rate-ctrl input[type=range]::-webkit-slider-thumb { background: var(--green); }
+
+/* ── KPI : 3 colonnes ── */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem; margin-bottom: 2rem;
+}
+@media (max-width: 1000px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 500px)  { .kpi-grid { grid-template-columns: 1fr; } }
+
+.kpi {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1.25rem 1.5rem;
+  box-shadow: var(--shadow); transition: all .25s;
+}
+.kpi:hover { transform: translateY(-3px); border-color: var(--border2); }
+.kpi-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.kpi-val   { font-family: 'DM Serif Display', serif; font-size: 1.55rem; line-height: 1.1; margin-bottom: 4px; }
+.kpi-sub   { font-size: 11px; color: var(--hint); }
+.v-gain    { color: var(--green); }
+.v-loyer   { color: var(--pink); }
+
+/* ── CHARTS ── */
+.chart-section { display: grid; grid-template-columns: 1.6fr 1fr; gap: 1.5rem; margin-bottom: 1.5rem; }
+@media (max-width: 950px) { .chart-section { grid-template-columns: 1fr; } }
+
+.chart-title { font-family: 'DM Serif Display', serif; font-size: 1.25rem; margin-bottom: 6px; }
+.chart-desc  { font-size: 12px; color: var(--hint); margin-bottom: 1.5rem; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 1.5rem; }
+.leg-item { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); font-weight: 500; }
+.leg-line { width: 24px; height: 3px; border-radius: 4px; display: inline-block; }
+.leg-dash { width: 24px; height: 0; border-top: 3px dashed; display: inline-block; }
+.leg-sq   { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+
+/* ── TABLE ── */
+.table-header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-bottom: 1.5rem; border-bottom: 1px solid var(--surface2); padding-bottom: 1rem;
+}
+.table-wrap { overflow-x: auto; margin: 0 -0.5rem; padding: 0 0.5rem; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: right; padding: 10px 12px;
+  color: var(--hint); font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  border-bottom: 2px solid var(--surface2); white-space: nowrap;
+}
+thead th:first-child { text-align: left; }
+thead th.col-editable { color: var(--blue); }
+
+tbody td { padding: 9px 12px; text-align: right; border-bottom: 1px solid var(--bg); color: var(--muted); }
+tbody td:first-child { text-align: left; font-weight: 600; color: var(--text); }
+tbody tr:hover td { background: var(--bg); color: var(--text); }
+tbody tr.row-vp-end td { background: #FFF8F0; }
+tbody tr.row-vp-end td:first-child::after { content: ' ←'; font-size: 10px; color: var(--pink); font-weight: 700; }
+
+.cell-vp { position: relative; text-align: right; }
+.vp-display {
+  display: inline-block; cursor: text;
+  border-bottom: 1px dashed var(--border2);
+  color: var(--muted); min-width: 70px;
+  padding: 2px 4px; border-radius: 3px;
+  transition: background .15s, color .15s;
+}
+.vp-display:hover { background: var(--surface2); color: var(--text); }
+.vp-display.modified { color: var(--blue); font-weight: 600; border-bottom-color: var(--blue); }
+.vp-input {
+  width: 90px; text-align: right;
+  font-family: 'DM Sans', sans-serif; font-size: 13px;
+  padding: 3px 6px; border: 1.5px solid var(--blue); border-radius: 5px;
+  outline: none; background: #EFF6FF; color: var(--text);
+  display: none;
+}
+
+.tag { display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.tag-reinvest { background: #FFF4E5; color: #BA7517; }
+.tag-percu      { background: #FBEAF0; color: #993556; }
+
+.export-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 11px; font-weight: 700;
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: 8px; padding: 8px 16px; cursor: pointer; color: var(--text);
+  text-transform: uppercase; letter-spacing: 0.05em; transition: all .2s;
+}
+.export-btn:hover { background: var(--text); color: #fff; border-color: var(--text); }
+
+.reset-btn {
+  font-family: 'DM Sans', sans-serif; font-size: 11px;
+  background: none; border: 1px solid var(--border);
+  border-radius: 8px; padding: 6px 12px; cursor: pointer; color: var(--hint);
+  transition: all .2s;
+}
+.reset-btn:hover { color: var(--text); border-color: var(--border2); }
+
+.note {
+  font-size: 11px; color: var(--hint); font-style: italic;
+  text-align: center; padding: 1.5rem 2rem 0;
+  border-top: 1px solid var(--surface2); margin-top: 2rem; line-height: 1.5;
+}
+
+@media print {
+  .no-print { display: none; }
+  body { background: #fff; }
+  .page { padding: 0; }
+  .panel { border: 1px solid #eee; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Simulateur SCPI</h1>
+  <p class="header-sub">Stratégie patrimoniale — capitalisation & revenus locatifs</p>
+  <div class="header-footer">
+    <span class="copyright"><strong>Charles Guay</strong> · Conseiller en Investissements Financiers</span>
+  </div>
+</header>
+
+<div class="page">
+
+  <div class="panel no-print">
+    <span class="section-label">Paramètres de simulation</span>
+    <div class="controls-grid">
+
+      <div class="ctrl-block">
+        <div class="ctrl-header">
+          <span class="ctrl-name">① Durée de détention</span>
+          <span class="ctrl-badge" id="val-duree">20 ans</span>
+        </div>
+        <input type="range" id="in-duree" min="1" max="30" value="20">
+        <span class="ctrl-sub">Horizon d'investissement global</span>
+      </div>
+
+      <div class="ctrl-block">
+        <div class="ctrl-header">
+          <span class="ctrl-name">② Réinvestissement des dividendes</span>
+          <span class="ctrl-badge" id="val-reinvest">Année 5</span>
+        </div>
+        <input type="range" id="in-reinvest" min="0" max="20" value="5">
+        <div class="ctrl-sub">
+          <span><strong>Avant :</strong> capitalisés</span>
+          <span><strong>Après :</strong> versés</span>
+        </div>
+      </div>
+
+      <div class="ctrl-block kpi-linked">
+        <div class="ctrl-header">
+          <span class="ctrl-name">③ Fin des versements</span>
+          <span class="ctrl-badge" id="val-vp">Année 12</span>
+        </div>
+        <input type="range" id="in-vp" min="0" max="20" value="12">
+        <span class="ctrl-sub">Référence pour les calculs de capital et de loyer</span>
+      </div>
+
+      <div class="ctrl-block rate-ctrl">
+        <div class="ctrl-header">
+          <span class="ctrl-name">④ Taux de distribution</span>
+          <span class="ctrl-badge" id="val-taux">5,5 %</span>
+        </div>
+        <input type="range" id="in-taux" min="40" max="80" value="55" step="1">
+        <span class="ctrl-sub">Taux brut annuel estimé (Rendement)</span>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="kpi-label" id="lbl-cap">Capital à l'année 12</div>
+      <div class="kpi-val" id="kpi-cap">—</div>
+      <div class="kpi-sub">Valeur totale du portefeuille</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label" id="lbl-rent">Loyer mensuel à l'année 12</div>
+      <div class="kpi-val v-loyer" id="kpi-rent">—</div>
+      <div class="kpi-sub">Revenu locatif estimé</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Cash investi total</div>
+      <div class="kpi-val" id="kpi-invest">—</div>
+      <div class="kpi-sub">Total des versements personnels</div>
+    </div>
+  </div>
+
+  <div class="chart-section">
+    <div class="panel">
+      <div class="chart-title">Croissance du patrimoine SCPI</div>
+      <div class="chart-desc">Évolution du capital total vs. cash réellement versé</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-line" style="background:#185FA5;"></span>Capital total</span>
+        <span class="leg-item"><span class="leg-dash" style="border-color:#3B6D11;"></span>Cash investi</span>
+      </div>
+      <div style="position:relative;height:300px;">
+        <canvas id="chartCapital"></canvas>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="chart-title">Loyers mensuels</div>
+      <div class="chart-desc">Flux de trésorerie par année</div>
+      <div class="legend">
+        <span class="leg-item"><span class="leg-sq" style="background:#EF9F27;"></span>Réinvestis</span>
+        <span class="leg-item"><span class="leg-sq" style="background:#D4537E;"></span>Perçus</span>
+      </div>
+      <div style="position:relative;height:300px;">
+        <canvas id="chartLoyers"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="table-header">
+      <div>
+        <div class="chart-title">Tableau annuel détaillé</div>
+        <div class="chart-desc">Cliquez sur un versement pour le modifier · La ligne surlignée marque la fin des versements programmés</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;" class="no-print">
+        <button class="reset-btn" onclick="resetOverrides()">Réinitialiser versements</button>
+        <button class="export-btn" onclick="exportCSV()">Exporter CSV</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Année</th>
+            <th class="col-editable">Versement annuel ✎</th>
+            <th>Cash Cumulé</th>
+            <th>Div. Capitalisés</th>
+            <th>Capital Total</th>
+            <th>Loyer Mensuel</th>
+            <th>Régime</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+    <p class="note">Simulation non contractuelle. Taux de distribution retenu : <span id="note-taux">5,5</span> % brut annuel. Les versements de l'année en cours sont proratisés à 50 % pour refléter leur étalement mensuel. Ne prend pas en compte la revalorisation des parts SCPI, la fiscalité applicable aux revenus fonciers ni les frais de souscription. Les performances passées ne préjugent pas des performances futures.</p>
+  </div>
+
+</div>
+
+<script>
+const CFG = { initial: 6000, vp_high: 1000, vp_standard: 500, vp_threshold: 2 };
+let simData  = [];
+let overrides = {};
+let chartCap = null;
+let chartLoy = null;
+
+const $ = id => document.getElementById(id);
+const slDuree    = $('in-duree');
+const slReinvest = $('in-reinvest');
+const slVp       = $('in-vp');
+const slTaux     = $('in-taux');
+
+function getTaux() { return parseInt(slTaux.value) / 1000; }
+const fmtEur  = n  => Math.round(n).toLocaleString('fr-FR') + ' €';
+const fmtTaux = v  => (v / 10).toFixed(1).replace('.', ',') + ' %';
+
+function defaultVp(year, stopVp) {
+  if (year === 0) return CFG.initial;
+  if (year > 0 && year <= stopVp)
+    return (year <= CFG.vp_threshold ? CFG.vp_high : CFG.vp_standard) * 12;
+  return 0;
+}
+
+function simulate(duree, stopReinvest, stopVp, taux) {
+  const rows = [];
+  let cumCash     = 0;
+  let cumReinvest = 0;
+  let cumPercu    = 0;
+
+  for (let y = 0; y <= duree; y++) {
+    const vpAnnuel = overrides.hasOwnProperty(y) ? overrides[y] : defaultVp(y, stopVp);
+    const capStart   = cumCash + cumReinvest;
+    const yearlyDiv  = (y === 0)
+      ? vpAnnuel * taux
+      : (capStart * taux) + (vpAnnuel * taux * 0.5);
+
+    const isReinvesting = y < stopReinvest;
+    if (isReinvesting) {
+      cumReinvest += yearlyDiv;
+    } else {
+      cumPercu += yearlyDiv;
+    }
+
+    cumCash += vpAnnuel;
+    const totalCap = cumCash + cumReinvest;
+
+    rows.push({
+      year: y,
+      vpAnnuel: Math.round(vpAnnuel),
+      isOverride: overrides.hasOwnProperty(y),
+      cumCash: Math.round(cumCash),
+      cumReinvest: Math.round(cumReinvest),
+      cumPercu: Math.round(cumPercu),
+      totalCap: Math.round(totalCap),
+      monthlyRent: Math.round(yearlyDiv / 12),
+      isReinvesting
+    });
+  }
+  return rows;
+}
+
+/* CHARTS */
+const noGrid    = { grid: { display: false }, border: { display: false } };
+const tickStyle = { color: '#A09A94', font: { size: 11, family: "'DM Sans',sans-serif" } };
+
+function initCharts(data) {
+  const labels = data.map(d => d.year);
+  chartCap = new Chart($('chartCapital'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Capital total', data: data.map(d => d.totalCap),
+          borderColor: '#185FA5', backgroundColor: 'transparent',
+          borderWidth: 3, pointRadius: 0, pointHoverRadius: 5,
+          pointHoverBackgroundColor: '#185FA5', tension: 0.4, fill: false },
+        { label: 'Cash investi', data: data.map(d => d.cumCash),
+          borderColor: '#3B6D11', backgroundColor: 'transparent',
+          borderWidth: 2, borderDash: [6,4], pointRadius: 0, tension: 0.1, fill: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ...noGrid, ticks: { ...tickStyle, autoSkip: true, maxTicksLimit: 10 } },
+        y: { ...noGrid, ticks: { ...tickStyle, callback: v => (v/1000).toFixed(0) + 'k €' } }
+      }
+    }
+  });
+
+  chartLoy = new Chart($('chartLoyers'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Loyer mensuel', data: data.map(d => d.monthlyRent),
+        backgroundColor: data.map(d => d.isReinvesting ? '#EF9F27' : '#D4537E'),
+        borderRadius: 5, borderSkipped: false, barPercentage: 0.7
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ...noGrid, ticks: { ...tickStyle, autoSkip: true, maxTicksLimit: 10 } },
+        y: { ...noGrid, ticks: { ...tickStyle, callback: v => Math.round(v) + ' €' } }
+      }
+    }
+  });
+}
+
+function updateCharts(data) {
+  const labels = data.map(d => d.year);
+  chartCap.data.labels = labels;
+  chartCap.data.datasets[0].data = data.map(d => d.totalCap);
+  chartCap.data.datasets[1].data = data.map(d => d.cumCash);
+  chartCap.update('none');
+  chartLoy.data.labels = labels;
+  chartLoy.data.datasets[0].data = data.map(d => d.monthlyRent);
+  chartLoy.data.datasets[0].backgroundColor = data.map(d => d.isReinvesting ? '#EF9F27' : '#D4537E');
+  chartLoy.update('none');
+}
+
+function renderTable(data, stopVp) {
+  $('table-body').innerHTML = data.map(r => {
+    const capStr    = r.cumReinvest > 0 ? fmtEur(r.cumReinvest) : '—';
+    const tag = r.isReinvesting ? '<span class="tag tag-reinvest">Capitalisé</span>' : '<span class="tag tag-percu">Perçu</span>';
+    const highlight = r.year === stopVp ? ' class="row-vp-end"' : '';
+    let vpCell = r.year === 0 ? `<td style="color:var(--muted);">${fmtEur(r.vpAnnuel)}</td>` : 
+      `<td class="cell-vp"><span class="vp-display${r.isOverride ? ' modified' : ''}" data-year="${r.year}">${r.vpAnnuel > 0 ? fmtEur(r.vpAnnuel) : '—'}</span><input class="vp-input" type="number" data-year="${r.year}" value="${r.vpAnnuel}"></td>`;
+
+    return `<tr${highlight}><td>Année ${r.year}</td>${vpCell}<td>${fmtEur(r.cumCash)}</td><td style="color:#BA7517;font-weight:500;">${capStr}</td><td style="font-weight:700;color:var(--text);">${fmtEur(r.totalCap)}</td><td style="font-weight:600;color:var(--text);">${fmtEur(r.monthlyRent)}</td><td>${tag}</td></tr>`;
+  }).join('');
+  attachCellEvents();
+}
+
+function attachCellEvents() {
+  document.querySelectorAll('.vp-display').forEach(span => span.addEventListener('click', () => {
+    const input = span.nextElementSibling;
+    span.style.display = 'none'; input.style.display = 'inline-block'; input.focus(); input.select();
+  }));
+  document.querySelectorAll('.vp-input').forEach(input => {
+    input.addEventListener('blur', () => {
+      const year = parseInt(input.dataset.year);
+      const val = Math.max(0, parseInt(input.value) || 0);
+      if (val === defaultVp(year, parseInt(slVp.value))) delete overrides[year]; else overrides[year] = val;
+      refresh();
+    });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') input.blur(); });
+  });
+}
+
+function updateKPI(data, stopVp, duree) {
+  const last = data[data.length - 1];
+  const vpIdx = Math.min(stopVp, duree);
+  const atVp = data[vpIdx] || last;
+  const lbl = stopVp === 0 ? "à l'année 0" : `à l'année ${vpIdx}`;
+  $('lbl-cap').textContent = `Capital ${lbl}`;
+  $('lbl-rent').textContent = `Loyer mensuel ${lbl}`;
+  $('kpi-cap').textContent = fmtEur(atVp.totalCap);
+  $('kpi-rent').textContent = fmtEur(atVp.monthlyRent);
+  $('kpi-invest').textContent = fmtEur(last.cumCash);
+}
+
+function resetOverrides() { overrides = {}; refresh(); }
+
+function refresh() {
+  let duree = parseInt(slDuree.value), reinvest = parseInt(slReinvest.value), vp = parseInt(slVp.value), taux = getTaux();
+  slReinvest.max = duree; slVp.max = duree;
+  if (reinvest > duree) { reinvest = duree; slReinvest.value = duree; }
+  if (vp > duree) { vp = duree; slVp.value = duree; }
+  $('val-duree').textContent = duree + ' ans';
+  $('val-reinvest').textContent = reinvest === 0 ? 'Jamais' : 'Année ' + reinvest;
+  $('val-vp').textContent = vp === 0 ? 'Jamais' : 'Année ' + vp;
+  $('val-taux').textContent = fmtTaux(parseInt(slTaux.value));
+  $('note-taux').textContent = (taux * 100).toFixed(1).replace('.', ',');
+  simData = simulate(duree, reinvest, vp, taux);
+  updateKPI(simData, vp, duree);
+  if (!chartCap) initCharts(simData); else updateCharts(simData);
+  renderTable(simData, vp);
+}
+
+function exportCSV() {
+  const header = ['Année','Versement annuel','Cash cumulé','Dividendes capitalisés','Capital total','Loyer mensuel','Régime'];
+  const rows = simData.map(r => [r.year, r.vpAnnuel, r.cumCash, r.cumReinvest, r.totalCap, r.monthlyRent, r.isReinvesting ? 'Capitalisé' : 'Perçu']);
+  const csv = [header, ...rows].map(r => r.join(';')).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `simulation_scpi.csv`; a.click();
+}
+
+[slDuree, slReinvest, slVp, slTaux].forEach(el => el.addEventListener('input', refresh));
+refresh();
+</script>
+</body>
+</html>
